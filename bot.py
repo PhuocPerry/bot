@@ -1,43 +1,82 @@
 import discord
 from discord.ext import commands
-from discord.ui import Button, View
+
+import asyncio
 import requests
 
-TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
-SERVER_URL = 'YOUR_SERVER_URL'  # URL máy chủ thứ 3 để gửi dữ liệu
+TOKEN = ''
 
-bot = commands.Bot(command_prefix='!')
+intents = discord.Intents.default()
+intents.message_content = True
 
-user_data = {}  # Dictionary để lưu thông tin người dùng
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-class PurchaseView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(Button(label="Có", style=discord.ButtonStyle.green, custom_id="yes_button"))
-        self.add_item(Button(label="Không", style=discord.ButtonStyle.red, custom_id="no_button"))
+declared_value = ""
+telco = ""
+serial = ""
+code = ""
 
-    @discord.ui.button(label="Có", style=discord.ButtonStyle.green)
-    async def yes_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Hãy nhập thông tin của bạn:")
-        self.user_input = await bot.wait_for('message', check=lambda message: message.author == interaction.user)
-        user_data[interaction.user.id] = self.user_input.content
-        data_to_send = {
-            'user_id': interaction.user.id,
-            'user_input': self.user_input.content
-        }
-        requests.post(SERVER_URL, json=data_to_send)
-        await interaction.followup.send(f"Đã lưu thông tin: {self.user_input.content} và gửi đến máy chủ.")
+question_declared_value = f"Câu hỏi 1: Mệnh giá là? ( {declared_value})"
+question_telco = f"Câu hỏi 2: Loại thẻ là? ( {telco})"
+question_serial = f"Câu hỏi 3: Serial là? ( {serial})"
+question_code = f"Câu hỏi 4: Mã thẻ là? ( {code})"
 
-    @discord.ui.button(label="Không", style=discord.ButtonStyle.red)
-    async def no_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Bạn đã chọn không mua hàng.")
+questions = [
+    question_declared_value,
+    question_telco,
+    question_serial,
+    question_code
+]
+
+answers = []
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
 
 @bot.command()
-async def mua(ctx):
-    await ctx.send("Bạn có muốn mua hàng không?", view=PurchaseView())
+async def napthe(ctx):
+    answers.clear()
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    for question in questions:
+        await ctx.send(question)
+        try:
+            message = await bot.wait_for('message', check=check, timeout=30.0)
+        except asyncio.TimeoutError:
+            await ctx.send('Bạn đã không trả lời kịp thời. Hãy thử lại.')
+            return
+        answers.append(message.content)
+
+    # Lấy ID của người gửi
+    user_id = ctx.author.id
+
+    # Gửi dữ liệu qua URL của bạn
+    url = 'https://mineperry.online/napthebot.php'
+    params = {
+        'user_id': user_id,
+        'declared_value': answers[0],
+        'telco': answers[1],
+        'serial': answers[2],
+        'code': answers[3]
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        await ctx.send("Dữ liệu đã được gửi thành công đến web PHP.")
+    except requests.exceptions.RequestException as e:
+        await ctx.send(f"Có lỗi xảy ra khi gửi dữ liệu: {e}")
+
+@bot.command()
+async def checkid(ctx):
+    embed = discord.Embed(
+        title=f"Your Discord ID",
+        description=f"ID: {ctx.author.id}",
+        color=discord.Color.dark_blue()
+    )
+    await ctx.send(embed=embed)
 
 bot.run(TOKEN)
