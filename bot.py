@@ -7,7 +7,7 @@ from flask import Flask, request
 app = Flask(__name__)
 
 # Token của bot Discord của bạn
-TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
+TOKEN = 'MTI1ODY3ODg2NDU1MzcwOTY1MA.GufZEJ.ktFffalT-t2Wozv3EPyWKpUgViVbsOraHI52sY'
 
 intents = discord.Intents.default()
 intents.message_content = True
