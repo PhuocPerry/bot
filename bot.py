@@ -1,42 +1,48 @@
 import discord
 from discord.ext import commands
-
 import asyncio
 import requests
+from flask import Flask, request
 
-TOKEN = ''
+app = Flask(__name__)
+
+# Token của bot Discord của bạn
+TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-declared_value = ""
-telco = ""
-serial = ""
-code = ""
+@app.route('/')
+def index():
+    return "Welcome to the Discord bot web interface!"
 
-question_declared_value = f"Câu hỏi 1: Mệnh giá là? ( {declared_value})"
-question_telco = f"Câu hỏi 2: Loại thẻ là? ( {telco})"
-question_serial = f"Câu hỏi 3: Serial là? ( {serial})"
-question_code = f"Câu hỏi 4: Mã thẻ là? ( {code})"
-
-questions = [
-    question_declared_value,
-    question_telco,
-    question_serial,
-    question_code
-]
-
-answers = []
+@app.route('/checkid', methods=['GET'])
+def checkid():
+    user_id = request.args.get('user_id')
+    if user_id:
+        return f"User ID: {user_id}"
+    else:
+        return "No user ID provided!"
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
 
 @bot.command()
+async def checkid(ctx):
+    user_id = ctx.author.id
+    await ctx.send(f"Your ID: {user_id}")
+
+@bot.command()
 async def napthe(ctx):
-    answers.clear()
+    questions = [
+        "Câu hỏi 1: Mệnh giá là?",
+        "Câu hỏi 2: Loại thẻ là?",
+        "Câu hỏi 3: Serial là?",
+        "Câu hỏi 4: Mã thẻ là?"
+    ]
+    answers = []
 
     def check(m):
         return m.author == ctx.author and m.channel == ctx.channel
@@ -50,10 +56,7 @@ async def napthe(ctx):
             return
         answers.append(message.content)
 
-    # Lấy ID của người gửi
     user_id = ctx.author.id
-
-    # Gửi dữ liệu qua URL của bạn
     url = 'https://mineperry.online/napthebot.php'
     params = {
         'user_id': user_id,
@@ -70,13 +73,10 @@ async def napthe(ctx):
     except requests.exceptions.RequestException as e:
         await ctx.send(f"Có lỗi xảy ra khi gửi dữ liệu: {e}")
 
-@bot.command()
-async def checkid(ctx):
-    embed = discord.Embed(
-        title=f"Your Discord ID",
-        description=f"ID: {ctx.author.id}",
-        color=discord.Color.dark_blue()
-    )
-    await ctx.send(embed=embed)
+def run_discord_bot():
+    bot.run(TOKEN)
 
-bot.run(TOKEN)
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.create_task(run_discord_bot())
+    app.run(host='0.0.0.0', port=5000)
